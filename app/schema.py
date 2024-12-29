@@ -2,14 +2,13 @@ from pydantic import BaseModel,Field
 from datetime import date
 from enum import Enum
 from typing import Optional
+import enum
 
-# Enum for registration types
-class RegistrationTypeEnum(str, Enum):
+class RegistrationTypeEnum(enum.Enum):
     SOCIAL_MEDIA = "SOCIAL_MEDIA"
     PROJECT_MANAGEMENT = "PROJECT_MANAGEMENT"
     COMMON_SIGNUP = "COMMON_SIGNUP"
 
-# Schemas for each registration type
 class SocialMediaSignup(BaseModel):
     first_name: str = Field(..., min_length=1, description="First name is required")
     last_name: str = Field(..., min_length=1, description="Last name is required")
@@ -39,14 +38,12 @@ class BasicSignup(BaseModel):
     class Config:
         from_attributes = True
 
-# Base schema
 class UserBase(BaseModel):
     type: RegistrationTypeEnum
 
     class Config:
         from_attributes = True
 
-# Response schema
 class UserResponse(BaseModel):
     id: int
     type: RegistrationTypeEnum

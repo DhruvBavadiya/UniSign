@@ -7,7 +7,7 @@ from sqlalchemy.orm import validates
 
 
 
-# Define an enum for registration types
+# enum for registration types
 class RegistrationType(enum.Enum):
     SOCIAL_MEDIA = "SOCIAL_MEDIA"
     PROJECT_MANAGEMENT = "PROJECT_MANAGEMENT"
@@ -23,14 +23,12 @@ class UserTable(Base):
     platform_registration_id = Column(Integer, ForeignKey('platform_registration_data.id', ondelete='CASCADE'))
     basic_signup_id = Column(Integer, ForeignKey('basic_signup_data.id', ondelete='CASCADE'))
 
-    # Define relationships
     social_media_data = relationship("SocialMediaData", back_populates="user", uselist=False, cascade="all, delete")
     platform_registration_data = relationship("PlatformRegistrationData", back_populates="user", uselist=False, cascade="all, delete")
     basic_signup_data = relationship("BasicSignupData", back_populates="user", uselist=False, cascade="all, delete")
 
     @property
     def user_specific_data(self):
-        # Conditionally return the related data based on the user type
         if self.type == RegistrationType.SOCIAL_MEDIA:
             return self.social_media_data
         elif self.type == RegistrationType.PROJECT_MANAGEMENT:
@@ -72,7 +70,6 @@ class PlatformRegistrationData(Base):
         password = Column(String, nullable=False)
         company_name = Column(String, nullable=True)
 
-        # Relationship back to UserTable
         user = relationship("UserTable", back_populates="platform_registration_data")
         __table_args__ = (
             UniqueConstraint('email', name='uix_email_type'),
@@ -93,7 +90,6 @@ class BasicSignupData(Base):
     last_name = Column(String, nullable=False)
     dob = Column(Date, nullable=True)
 
-    # Relationship back to UserTable
     user = relationship("UserTable", back_populates="basic_signup_data")
     __table_args__ = (
         UniqueConstraint('mobile_number', name='uix_basic_mobile_number_type'),

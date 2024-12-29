@@ -6,16 +6,15 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Fetch values from the environment
+# load from env.
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 DATABASE_URL = os.getenv("DATABASE_URL")
 ADMIN_URL = os.getenv("ADMIN_URL")
 
-# Create the database if it doesn't exist
+# Create database
 create_database(ADMIN_URL, DATABASE_NAME)
 
-# SQLAlchemy setup
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

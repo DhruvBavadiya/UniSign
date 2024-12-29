@@ -14,7 +14,6 @@ from .schema import (
 
 router = APIRouter()
 
-# Helper function to create type-specific data
 def create_user_data(data: Union[SocialMediaSignup, PlatformRegistration, BasicSignup], reg_type: RegistrationType, db: Session):
     print(reg_type, "reg_type")
     if reg_type == RegistrationType.SOCIAL_MEDIA:
@@ -51,23 +50,23 @@ def create_user_data(data: Union[SocialMediaSignup, PlatformRegistration, BasicS
     else:
         raise HTTPException(status_code=400, detail=f'Invalid registration type or data is not correct')
     
-    # Add the user data to the session
     db.add(user_data)
-    db.commit()  # Commit the data to make it persistent
-    db.refresh(user_data)  # Refresh the object to get the id
+    db.commit()  
+    db.refresh(user_data)  
     
-    print(user_data.id, "user_specific_data_id")  # This should print the id after commit and refresh
+    print(user_data.id, "user_specific_data_id")  
     
     return user_data
 
-@router.post("/add_user/")
+
+# add user route
+@router.post("/add_user")
 def register_user(data: dict, db: Session = Depends(get_db)):
     reg_type = None
     valid_data = None
     user_entry = None
     user_specific_data = None
 
-    # Determine the registration type and data schema
     try:
         valid_data = SocialMediaSignup(**data)
         reg_type = RegistrationType.SOCIAL_MEDIA
@@ -92,23 +91,19 @@ def register_user(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid registration type")
 
     try:
-        # Create the UserTable entry
         user_entry = UserTable(type=reg_type)
         db.add(user_entry)
-        db.commit()  # Commit the UserTable entry
+        db.commit()  
         
-        # Create the user-specific data entry based on the registration type
         try:
             user_specific_data = create_user_data(valid_data, reg_type, db)
             print(user_specific_data, "user_specific_data")
             print(user_specific_data.id, "user_specific_data_id")
         except Exception as e:
-            # Rollback user table creation and raise the exception
-            db.delete(user_entry)  # Delete the user entry if user-specific data creation fails
-            db.commit()  # Commit the deletion
+            db.delete(user_entry)  
+            db.commit()  
             raise HTTPException(status_code=400, detail=f"Error creating specific data: {e}")
 
-        # Set the correct foreign key based on the registration type
         if reg_type == RegistrationType.SOCIAL_MEDIA:
             user_entry.social_media_id = user_specific_data.id
         elif reg_type == RegistrationType.PROJECT_MANAGEMENT:
@@ -116,20 +111,17 @@ def register_user(data: dict, db: Session = Depends(get_db)):
         elif reg_type == RegistrationType.COMMON_SIGNUP:
             user_entry.basic_signup_id = user_specific_data.id
 
-        # Commit the changes after both UserTable and user-specific data are created
         db.commit()
         db.refresh(user_entry)
         db.refresh(user_specific_data)
 
 
     except SQLAlchemyError as e:
-        # Rollback and delete the user entry if something goes wrong
         if user_entry:
-            db.delete(user_entry)  # Delete the user entry if there was an error
+            db.delete(user_entry)  
             db.commit()
         raise HTTPException(status_code=400, detail=f"Error creating user entry: {e}")
 
-    # Prepare and return the response
     response = {
         "id": user_entry.id,
         "type": user_entry.type,
@@ -137,26 +129,22 @@ def register_user(data: dict, db: Session = Depends(get_db)):
     }
     return response
 
-
+# update user route
 @router.put("/update_user/{user_id}/")
 def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
     try:
-    # Retrieve user record
         user = db.query(UserTable).filter(UserTable.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Define allowed fields for each registration type
         allowed_fields_by_type = {
             RegistrationType.SOCIAL_MEDIA: {"first_name", "last_name", "mobile_number", "hashtag"},
             RegistrationType.PROJECT_MANAGEMENT: {"first_name", "last_name", "email", "password", "company_name"},
             RegistrationType.COMMON_SIGNUP: {"first_name", "last_name", "mobile_number", "dob"}
         }
         
-        # Get allowed fields for the current user type
         allowed_fields = allowed_fields_by_type.get(user.type, set())
         
-        # Identify any extra fields in the request that are not allowed for the user type
         extra_fields = [key for key in data.keys() if key not in allowed_fields]
         if extra_fields:
             raise HTTPException(
@@ -164,7 +152,6 @@ def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
                 detail=f"Invalid fields provided: {extra_fields}. Allowed fields: {list(allowed_fields)}"
             )
         
-        # Fetch type-specific data
         if user.type == RegistrationType.SOCIAL_MEDIA:
             user_data = db.query(SocialMediaData).filter(SocialMediaData.id == user.social_media_id).first()
         elif user.type == RegistrationType.PROJECT_MANAGEMENT:
@@ -177,12 +164,10 @@ def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
         if not user_data:
             raise HTTPException(status_code=404, detail=f"No data found for user type {user.type}")
         
-        # Update the fields in the user_data model
         for key, value in data.items():
             if hasattr(user_data, key):
                 setattr(user_data, key, value)
         
-        # Commit the changes and refresh the user data
         db.commit()
         db.refresh(user_data)
         
@@ -190,15 +175,14 @@ def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error updating user: {e}")
 
+# delete user route
 @router.delete("/delete_user/{user_id}/")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     try:
-        # Retrieve the user record
         user = db.query(UserTable).filter(UserTable.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Delete type-specific data first
         if user.type == RegistrationType.SOCIAL_MEDIA:
             user_data = db.query(SocialMediaData).filter(SocialMediaData.id == user.social_media_id).first()
         elif user.type == RegistrationType.PROJECT_MANAGEMENT:
@@ -208,11 +192,9 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
         else:
             raise HTTPException(status_code=400, detail="Unsupported registration type")
         
-        # Delete the type-specific data
         if user_data:
             db.delete(user_data)
         
-        # Delete the main user entry
         db.delete(user)
         db.commit()
         
@@ -220,15 +202,14 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error deleting user: {e}")
 
+# get user route
 @router.get("/get_user/{user_id}/")
 def get_user(user_id: int, db: Session = Depends(get_db)):
     try:
-        # Retrieve the user record
         user = db.query(UserTable).filter(UserTable.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Fetch type-specific data based on the user type
         if user.type == RegistrationType.SOCIAL_MEDIA:
             user_data = db.query(SocialMediaData).filter(SocialMediaData.id == user.social_media_id).first()
         elif user.type == RegistrationType.PROJECT_MANAGEMENT:
@@ -238,11 +219,9 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         else:
             raise HTTPException(status_code=400, detail="Unsupported registration type")
         
-        # If no user data is found, raise an error
         if not user_data:
             raise HTTPException(status_code=404, detail=f"No data found for user type {user.type}")
         
-        # Prepare the response with the user and user-specific data
         response = {
             "id": user.id,
             "type": user.type,

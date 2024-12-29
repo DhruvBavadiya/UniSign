@@ -9,7 +9,7 @@ from .models import (
     UserTable, SocialMediaData, PlatformRegistrationData, BasicSignupData, RegistrationType
 )
 from .schema import (
-    SocialMediaSignup, PlatformRegistration, BasicSignup, UserResponse
+    SocialMediaSignup, PlatformRegistration, BasicSignup, UserRequest, UserResponse, UserResponseUpdated
 )
 
 router = APIRouter()
@@ -60,29 +60,31 @@ def create_user_data(data: Union[SocialMediaSignup, PlatformRegistration, BasicS
 
 
 # add user route
-@router.post("/add_user")
-def register_user(data: dict, db: Session = Depends(get_db)):
+@router.post("/add_user",response_model=UserResponseUpdated)
+def register_user(data: UserRequest, db: Session = Depends(get_db)):
     reg_type = None
     valid_data = None
     user_entry = None
     user_specific_data = None
+    print(data, "data")
+    # data = data.model_dump()
 
     try:
-        valid_data = SocialMediaSignup(**data)
+        valid_data = SocialMediaSignup(**data.dict())
         reg_type = RegistrationType.SOCIAL_MEDIA
     except ValidationError:
         pass
 
     if not reg_type:
         try:
-            valid_data = PlatformRegistration(**data)
+            valid_data = PlatformRegistration(**data.dict())
             reg_type = RegistrationType.PROJECT_MANAGEMENT
         except ValidationError:
             pass
 
     if not reg_type:
         try:
-            valid_data = BasicSignup(**data)
+            valid_data = BasicSignup(**data.dict())
             reg_type = RegistrationType.COMMON_SIGNUP
         except ValidationError:
             pass
@@ -121,11 +123,13 @@ def register_user(data: dict, db: Session = Depends(get_db)):
             db.delete(user_entry)  
             db.commit()
         raise HTTPException(status_code=400, detail=f"Error creating user entry: {e}")
+    user_specific_data_dict = {key: value for key, value in user_specific_data.__dict__.items() if not key.startswith('_')}
 
+    user_specific_data_without_id = {key: value for key, value in user_specific_data_dict.items() if key != "id"}
+    print(user_specific_data_without_id, "user_specific_data_without_id")
     response = {
         "id": user_entry.id,
-        "type": user_entry.type,
-        "user_data": user_specific_data
+        "user_data": user_specific_data_without_id
     }
     return response
 
@@ -203,7 +207,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Error deleting user: {e}")
 
 # get user route
-@router.get("/get_user/{user_id}/")
+@router.get("/get_user/{user_id}/",response_model=UserResponseUpdated)
 def get_user(user_id: int, db: Session = Depends(get_db)):
     try:
         user = db.query(UserTable).filter(UserTable.id == user_id).first()
@@ -222,9 +226,11 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         if not user_data:
             raise HTTPException(status_code=404, detail=f"No data found for user type {user.type}")
         
+        user_data = {key: value for key, value in user_data.__dict__.items() if not key.startswith('_')}
+
+        user_data = {key: value for key, value in user_data.items() if key != "id"}
         response = {
             "id": user.id,
-            "type": user.type,
             "user_data": user_data
         }
         

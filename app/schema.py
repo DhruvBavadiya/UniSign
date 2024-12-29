@@ -1,7 +1,7 @@
 from pydantic import BaseModel,Field
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 import enum
 
 class RegistrationTypeEnum(enum.Enum):
@@ -37,9 +37,12 @@ class BasicSignup(BaseModel):
 
     class Config:
         from_attributes = True
+        
+UserRequest = Union[SocialMediaSignup, PlatformRegistration, BasicSignup]
 
-class UserBase(BaseModel):
-    type: RegistrationTypeEnum
+class UserResponseUpdated(BaseModel):
+    id: int
+    user_data: UserRequest
 
     class Config:
         from_attributes = True

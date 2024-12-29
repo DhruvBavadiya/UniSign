@@ -1,65 +1,56 @@
-from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from datetime import date
-from typing import Optional,Type
-from sqlalchemy import Enum
-from app.models import RegistrationType
+from enum import Enum
+from typing import Optional
 
+# Enum for registration types
+class RegistrationTypeEnum(str, Enum):
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"
+    PROJECT_MANAGEMENT = "PROJECT_MANAGEMENT"
+    COMMON_SIGNUP = "COMMON_SIGNUP"
+
+# Schemas for each registration type
 class SocialMediaSignup(BaseModel):
-    mobile_number: str
-    first_name: str
-    last_name: str
-    hashtag: str
+    first_name: str = Field(..., min_length=1, description="First name is required")
+    last_name: str = Field(..., min_length=1, description="Last name is required")
+    mobile_number: str = Field(...,  description="Valid mobile number is required")
+    hashtag: str = Field(..., min_length=1, description="Hashtag is required")
 
     class Config:
         from_attributes = True
 
 class PlatformRegistration(BaseModel):
-    company_name: str
-    first_name: str
-    last_name: str
-    email: str
-    password: str
+    first_name: str = Field(..., min_length=1, description="First name is required")
+    last_name: str = Field(..., min_length=1, description="Last name is required")
+    email: str = Field(..., description="Valid email address is required")
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+    company_name: str = Field(None, min_length=1, description="Company name cannot be empty if provided")
+
 
     class Config:
         from_attributes = True
 
 class BasicSignup(BaseModel):
-    mobile_number: str
-    first_name: str
-    last_name: str
-    dob: str
+    mobile_number: str = Field(..., description="Valid 10-digit mobile number is required")
+    first_name: str = Field(..., min_length=1, description="First name is required")
+    last_name: str = Field(..., min_length=1, description="Last name is required")
+    dob: date = Field(..., description="Date of birth is required in YYYY-MM-DD format")
 
     class Config:
         from_attributes = True
 
-class RegistrationBase(BaseModel):
-    type: RegistrationType
-    mobile_number: Optional[str] = None
-    first_name: str
-    last_name: str
-    email: Optional[str] = None
-    password: Optional[str] = None
-    company_name: Optional[str] = None
-    dob: Optional[date] = None
-    hashtag: Optional[str] = None
+# Base schema
+class UserBase(BaseModel):
+    type: RegistrationTypeEnum
 
     class Config:
         from_attributes = True
 
-class RegistrationResponse(RegistrationBase):
+# Response schema
+class UserResponse(BaseModel):
     id: int
+    type: RegistrationTypeEnum
+    user_data: dict
 
     class Config:
         from_attributes = True
-
-
-def validate_registration_type(data: dict, reg_type: RegistrationType) -> Type[BaseModel]:
-    if reg_type == RegistrationType.SOCIAL_MEDIA:
-        return SocialMediaSignup(**data)
-    elif reg_type == RegistrationType.PROJECT_MANAGEMENT:
-        return PlatformRegistration(**data)
-    elif reg_type == RegistrationType.COMMON_SIGNUP:
-        return BasicSignup(**data)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid registration type")

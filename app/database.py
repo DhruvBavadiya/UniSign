@@ -2,10 +2,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from utils.database_operation import create_database
+import os
+from dotenv import load_dotenv
 
-DATABASE_NAME = "user_db"
-DATABASE_URL = f"postgresql://postgres:test@localhost:5432/{DATABASE_NAME}"
-ADMIN_URL = "postgresql://postgres:test@localhost:5432/postgres"
+load_dotenv()
+
+# Fetch values from the environment
+DATABASE_NAME = os.getenv("DATABASE_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
+ADMIN_URL = os.getenv("ADMIN_URL")
 
 # Create the database if it doesn't exist
 create_database(ADMIN_URL, DATABASE_NAME)

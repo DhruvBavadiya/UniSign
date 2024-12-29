@@ -134,7 +134,7 @@ def register_user(data: UserRequest, db: Session = Depends(get_db)):
     return response
 
 # update user route
-@router.put("/update_user/{user_id}/")
+@router.put("/update_user/{user_id}/",response_model=UserResponseUpdated)
 def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
     try:
         user = db.query(UserTable).filter(UserTable.id == user_id).first()
@@ -174,8 +174,15 @@ def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):
         
         db.commit()
         db.refresh(user_data)
+        user_data = {key: value for key, value in user_data.__dict__.items() if not key.startswith('_')}
+
+        user_data = {key: value for key, value in user_data.items() if key != "id"}
+        response = {
+            "id": user.id,
+            "user_data": user_data
+        }
         
-        return {"message": "User updated successfully"}
+        return response
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error updating user: {e}")
 
